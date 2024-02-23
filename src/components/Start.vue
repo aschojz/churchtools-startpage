@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useStore } from '../store';
+import { Button } from '@churchtools/styleguide';
 
 const store = useStore();
 const onClick = () => store.count++;
@@ -7,9 +8,7 @@ const onClick = () => store.count++;
 
 <template>
     <div class="home">
-        <h1>Hello World</h1>
-        <button @click="onClick">Add count</button>
-        <div>Count: {{ store.count }}</div>
+        <Button size="S" @click="onClick">Hilfe & Fehler</Button>
     </div>
 </template>
 

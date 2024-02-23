@@ -13,5 +13,6 @@ module.exports = {
         'vue/no-reserved-component-names': 'off',
         'no-undef': 'off',
         'vue/no-v-html': 'off',
+        '@typescript-eslint/no-unused-vars': 'warn',
     },
 };

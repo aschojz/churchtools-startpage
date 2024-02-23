@@ -1,1 +1,6 @@
 /node_modules
+/dist
+.npmrc
+.env
+.DS_Store
+dist.zip

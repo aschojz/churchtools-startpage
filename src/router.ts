@@ -1,9 +1,18 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
-import Start from './components/Start.vue';
 
 const routes: RouteRecordRaw[] = [
-    { path: '/start', name: 'start', component: Start },
-    { path: '', redirect: { name: 'start' } },
+    {
+        path: '/profile',
+        name: 'profile',
+        component: () => import('./profile/Profile.vue'),
+    },
+    {
+        path: '/profile/:groupId',
+        name: 'my-group',
+        component: () => import('./profile/MyGroup.vue'),
+        props: true,
+    },
+    { path: '', redirect: { name: 'profile' } },
 ];
 
 export const router = createRouter({
