@@ -50,6 +50,7 @@ const values = computed(() => {
 const name = computed(() => getName(group.value?.name));
 const note = computed(() => mdToHtml(group.value?.information.note));
 
+const defaultValues = ['bitte wählen', 'bitte ausfüllen', 'eingeladen'];
 const { fields: data } = useGroupMemberfields(id);
 const fields = computed(
     () =>
@@ -57,6 +58,7 @@ const fields = computed(
             ...f,
             key: f.key.replaceAll('.', '_'),
             nameTranslated: t(f.name, false),
+            options: f.options.filter((o) => !defaultValues.includes(o.id)),
         })) ?? []
 );
 
@@ -87,7 +89,7 @@ const items = computed(() => {
                         'radioSelect',
                     ].includes(field?.fieldTypeCode)
                 ) {
-                    values ??= [];
+                    values ??= null;
                 }
 
                 const payload = { fields: { [field.id]: values } };
