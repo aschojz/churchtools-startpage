@@ -113,7 +113,9 @@ const onKeyValueEdit = (item: KeyValueItem) => {
     editFormData(
         {
             context: item.context ?? props.context ?? '',
-            clearText: canClear(item) ? tx(`Abwählen`) : item.clearText,
+            clearText: canClear(item)
+                ? tx(`Daten zurücksetzen`)
+                : item.clearText,
             headline: item.headline,
             backdropClose: item.backdropClose,
             zIndex: item.zIndex,

@@ -6,7 +6,8 @@ import { FIFTEEN_MINUTES } from '../utils/config';
 import useMain from './useMain';
 
 export default function useGroupMembers(
-    groupId: ComputedRef<number> | Ref<number>
+    groupId: ComputedRef<number> | Ref<number>,
+    query: ComputedRef<string> | Ref<string>
 ) {
     const { currentUserId } = useMain();
     const getGroupMembers = () => {
@@ -20,12 +21,12 @@ export default function useGroupMembers(
                             meta: PaginationMetaData;
                         };
                     }>(
-                        `/groups/${groupId.value}/members?page=${pageParam}&limit=200`,
+                        `/groups/${groupId.value}/members?page=${pageParam}&limit=200&query=${query.value}`,
                         undefined,
                         true
                     );
                 },
-                enabled: !!groupId,
+                enabled: () => !!groupId.value && query.value !== undefined,
                 initialPageParam: 1,
                 getNextPageParam: (lastPage) => {
                     const nextPage = lastPage.data.meta.pagination.current + 1;
@@ -61,8 +62,8 @@ export default function useGroupMembers(
             if (hasNextPage.value) {
                 await fetchNextPage();
             }
-            if (isFetching.value) {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+            if (isFetching.value || !query.value) {
+                await new Promise((resolve) => setTimeout(resolve, 2000));
             }
             return getMyMembership();
         }

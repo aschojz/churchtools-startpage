@@ -30,7 +30,7 @@ export default function useMain() {
     const isLoggedIn = computed(() => currentUserId.value > -1);
 
     const currentUserId = computed(() => data.value?.data.data.id ?? -1);
-    const currentUser = computed(() => data.value?.data.data);
+    const currentUser = computed(() => data.value?.data.data ?? {});
 
     return {
         currentUser,

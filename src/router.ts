@@ -7,7 +7,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./profile/Profile.vue'),
     },
     {
-        path: '/profile/:groupId',
+        path: '/profile/:groupId(\\d+)',
         name: 'my-group',
         component: () => import('./profile/MyGroup.vue'),
         props: true,

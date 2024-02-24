@@ -6,25 +6,32 @@ import {
     Button,
 } from '@churchtools/styleguide';
 import SectionedCard from '../components/SectionedCard.vue';
-import { Member, mapViz, queryClient, t } from '@churchtools/utils';
+import { Member, mapViz, queryClient, t, useToasts } from '@churchtools/utils';
 import useGroup from '../composables/useGroup';
 import { computed, onMounted, ref, toRef } from 'vue';
 import { getName, mdToHtml } from '../utils/helper';
 import useGroupMemberfields from '../composables/useGroupMemberfields';
 import useGroupMembers from '../composables/useGroupMembers';
 import { sortBy } from 'lodash';
-import { churchtoolsClient } from '@churchtools/churchtools-client';
+import {
+    churchtoolsClient,
+    errorHelper,
+} from '@churchtools/churchtools-client';
 import useMain from '../composables/useMain';
 
 const props = defineProps<{
-    groupId: number;
+    groupId: string;
 }>();
-
-const { currentUserId } = useMain();
+const id = computed(() => parseInt(props.groupId));
+const { currentUserId, currentUser } = useMain();
+const { errorToast, successToast } = useToasts();
 const { getGroup } = useGroup();
-const { data: group, isLoading } = getGroup(toRef(() => props.groupId));
+const { data: group, isLoading } = getGroup(id);
 
-const { getMyMembership } = useGroupMembers(toRef(() => props.groupId));
+const { getMyMembership } = useGroupMembers(
+    id,
+    toRef(() => currentUser.value?.lastName)
+);
 
 const myMembership = ref<Member>();
 onMounted(async () => {
@@ -33,14 +40,17 @@ onMounted(async () => {
 const values = computed(() => {
     const fields = myMembership.value?.fields;
     return Object.fromEntries(
-        fields?.map((field) => [field.name, field.value]) ?? []
+        fields?.map((field) => [
+            field.name.replaceAll('.', '_'),
+            field.value,
+        ]) ?? []
     );
 });
 
 const name = computed(() => getName(group.value?.name));
 const note = computed(() => mdToHtml(group.value?.information.note));
 
-const { fields: data } = useGroupMemberfields(toRef(() => props.groupId));
+const { fields: data } = useGroupMemberfields(id);
 const fields = computed(
     () =>
         data.value.map((f) => ({
@@ -64,13 +74,25 @@ const items = computed(() => {
             editable: true,
             context: name.value,
             onSave: async (e) => {
-                const [key, values] = Object.entries(e)[0];
+                // eslint-disable-next-line prefer-const
+                let [key, values] = Object.entries(e)[0];
                 const field = fields.value.find(
                     (f) => f.key === key.replaceAll('.', '_')
                 );
+                if (
+                    [
+                        'select',
+                        'multiselect',
+                        'radioselect',
+                        'radioSelect',
+                    ].includes(field?.fieldTypeCode)
+                ) {
+                    values ??= [];
+                }
 
                 const payload = { fields: { [field.id]: values } };
                 const p = {
+                    comment: null,
                     ...myMembership.value,
                     fields:
                         Array.isArray(payload.fields) || !payload.fields
@@ -84,15 +106,19 @@ const items = computed(() => {
                               )
                             : payload.fields,
                 };
-
-                const result = await churchtoolsClient.put<Member[]>(
-                    `/groups/${props.groupId}/members/${currentUserId.value}`,
-                    p
-                );
-                myMembership.value = result[0];
-                queryClient.invalidateQueries({
-                    queryKey: ['groups', props.groupId, 'members'],
-                });
+                try {
+                    const result = await churchtoolsClient.put<Member[]>(
+                        `/groups/${props.groupId}/members/${currentUserId.value}`,
+                        p
+                    );
+                    myMembership.value = result[0];
+                    queryClient.invalidateQueries({
+                        queryKey: ['groups', id.value, 'members'],
+                    });
+                    successToast('Daten gespeichert');
+                } catch (error) {
+                    errorToast(errorHelper.getTranslatedErrorMessage(error));
+                }
             },
         };
     });
@@ -113,13 +139,6 @@ const items = computed(() => {
             { title: name },
         ]"
     >
-        <template #title-actions>
-            <!-- <div class="flex-grow justify-end items-center flex">
-                <Button size="S" icon="fas fa-pen" outlined @click="editAll">
-                    Alle bearbeiten
-                </Button>
-            </div> -->
-        </template>
         <div
             v-if="note"
             class="markdown max-w-p text-secondary text-base"

@@ -2,8 +2,9 @@
 import { Card, Tag } from '@churchtools/styleguide';
 import { GroupDomainObjectType, Member } from '@churchtools/utils';
 import useGroupMemberfields from '../composables/useGroupMemberfields';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, toRef } from 'vue';
 import useGroupMembers from '../composables/useGroupMembers';
+import useMain from '../composables/useMain';
 
 const props = defineProps<{
     gms: Member & { group: GroupDomainObjectType };
@@ -12,8 +13,12 @@ const props = defineProps<{
 
 const groupId = computed(() => parseInt(props.gms.group.domainIdentifier));
 const { fields, requiredFields } = useGroupMemberfields(groupId);
+const { currentUser } = useMain();
 
-const { getMyMembership } = useGroupMembers(groupId);
+const { getMyMembership } = useGroupMembers(
+    groupId,
+    toRef(() => currentUser.value?.lastName)
+);
 const myMembership = ref<Member>();
 const isLoading = ref(true);
 onMounted(async () => {
@@ -21,6 +26,7 @@ onMounted(async () => {
     isLoading.value = false;
 });
 
+const defaultValues = ['bitte wählen', 'bitte ausfüllen', 'eingeladen'];
 const fieldsCompleted = computed(() => {
     if (!myMembership.value?.fields || !requiredFields.value?.length) {
         return 'no-fields';
@@ -28,13 +34,9 @@ const fieldsCompleted = computed(() => {
     return requiredFields.value.every((f) => {
         const res = myMembership.value?.fields.find((ff) => {
             const hasValue = Array.isArray(ff.value)
-                ? ff.value.filter(
-                      (v) =>
-                          !!v && v !== 'bitte wählen' && v !== 'bitte ausfüllen'
-                  ).length
-                : !!ff.value &&
-                  ff.value !== 'bitte wählen' &&
-                  ff.value !== 'bitte ausfüllen';
+                ? !!ff.value.filter((v) => !!v && !defaultValues.includes(v))
+                      .length
+                : !!ff.value && !defaultValues.includes(ff.value);
             return ff.id === f.id && hasValue;
         });
         return !!res;
@@ -70,16 +72,19 @@ const statuses = {
 };
 
 const statusTag = computed(() => {
-    const statusIndex = fields.value?.findIndex(
+    const statusField = fields.value?.find(
         (f) => f.key === 'Zu-/Absage Mitarbeit'
     );
-    if (statusIndex < 0 || !myMembership.value?.fields) {
+    if (!statusField || !myMembership.value?.fields) {
         return {
             label: 'Eingeladen',
             color: 'yellow',
             icon: 'fas fa-envelope',
         };
     }
+    const statusIndex = myMembership.value.fields.findIndex(
+        (f) => f.id === statusField.id
+    );
     const value = myMembership.value?.fields[statusIndex]?.value ?? null;
 
     return {

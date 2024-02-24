@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { InfoMessageContainer } from '@churchtools/styleguide';
-import { useToasts, useMain } from '@churchtools/utils';
+import { useToasts, useMain, queryClient } from '@churchtools/utils';
+import { VueQueryDevtools } from '@tanstack/vue-query-devtools';
 
 const { toasts, removeToast } = useToasts();
 const { loadCurrentUser, mainStore } = useMain();
@@ -23,6 +24,7 @@ const isDev = computed(() => import.meta.env.MODE === 'development');
             :messages="toasts"
             @close-info-message="removeInfoMessage"
         />
+        <VueQueryDevtools :client="queryClient" />
     </div>
 </template>
 <style scoped>

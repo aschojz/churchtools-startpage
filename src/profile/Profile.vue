@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
     ContentWrapper,
-    SectionedCard,
     SectionHeader,
     LoadingDots,
 } from '@churchtools/styleguide';
@@ -10,6 +9,7 @@ import usePersonMasterData from '../composables/usePersonMasterData';
 import useMyGroups from '../composables/useMyGroups';
 import useWikiPage from '../composables/useWikiPage';
 import { mdToHtml, getName } from '../utils/helper';
+import SectionedCard from '../components/SectionedCard.vue';
 import {
     useFields,
     mapViz,
@@ -25,7 +25,10 @@ import {
     GROUP_TYPE_SHORTIES,
 } from '../utils/config';
 import GroupCard from './GroupCard.vue';
-import { churchtoolsClient } from '@churchtools/churchtools-client';
+import {
+    churchtoolsClient,
+    errorHelper,
+} from '@churchtools/churchtools-client';
 import { sortBy } from 'lodash';
 import useMain from '../composables/useMain';
 
@@ -40,30 +43,32 @@ const filteredGroupTypes = computed(() => {
     const gt = groupTypes.value.filter((groupType) =>
         GROUP_TYPE_SHORTIES.includes(groupType.shorty)
     );
-    return gt.map((g) => {
-        return {
-            ...g,
-            namePluralTranslated: getName(
-                g.namePluralTranslated ?? g.nameTranslated
-            ),
-            groups: myGroups.value
-                .filter(
-                    (group) =>
-                        rolesById.value[group.groupTypeRoleId].groupTypeId ===
-                        g.id
-                )
-                .map((group) => {
-                    return {
-                        ...group,
-                        group: {
-                            ...group.group,
-                            title: getName(group.group.title),
-                            showStatus: g.shorty === 'AB',
-                        },
-                    };
-                }),
-        };
-    });
+    return gt
+        .map((g) => {
+            return {
+                ...g,
+                namePluralTranslated: getName(
+                    g.namePluralTranslated ?? g.nameTranslated
+                ),
+                groups: myGroups.value
+                    .filter(
+                        (group) =>
+                            rolesById.value[group.groupTypeRoleId]
+                                .groupTypeId === g.id
+                    )
+                    .map((group) => {
+                        return {
+                            ...group,
+                            group: {
+                                ...group.group,
+                                title: getName(group.group.title),
+                                showStatus: g.shorty === 'AB',
+                            },
+                        };
+                    }),
+            };
+        })
+        .filter((g) => g.groups.length > 0);
 });
 
 const { getWikiPage } = useWikiPage();
@@ -84,9 +89,6 @@ const { personFields, loadFields } = useFields();
 const { currentUser, currentUserId } = useMain();
 onMounted(async () => {
     loadFields();
-    if (!isLoading.value) {
-        queryClient.invalidateQueries({ queryKey: ['myGroups'] });
-    }
 });
 
 const fields = computed(() => {
@@ -129,7 +131,7 @@ const fields = computed(() => {
                     });
                     successToast('Daten gespeichert');
                 } catch (error) {
-                    errorToast(error);
+                    errorToast(errorHelper.getTranslatedErrorMessage(error));
                 }
             },
         };
@@ -139,10 +141,10 @@ const fields = computed(() => {
 </script>
 <template>
     <ContentWrapper max-width>
-        <div class="max-w-p mb-10" v-html="description"></div>
+        <div class="max-w-p mb-10 pjta-markdown" v-html="description"></div>
         <div class="flex flex-col gap-8">
             <LoadingDots
-                v-if="isLoadingMasterData || !currentUser?.id"
+                v-if="isLoadingMasterData || !currentUserId"
                 class="mt-10"
             />
             <template v-else>
@@ -167,6 +169,6 @@ const fields = computed(() => {
                 </div>
             </template>
         </div>
-        <div class="max-w-p mb-10" v-html="footer"></div>
+        <div class="max-w-p mb-10 pjta-markdown" v-html="footer"></div>
     </ContentWrapper>
 </template>
