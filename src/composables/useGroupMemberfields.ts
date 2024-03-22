@@ -24,8 +24,12 @@ export default function useGroupMemberfields(
     };
     const { data: groupMemberfields } = getGroupMemberfields();
 
-    const fields = computed(() => {
-        return (groupMemberfields.value ?? []).map((field) => {
+    const pureGroupMemberfields = computed(() =>
+        (groupMemberfields.value ?? []).filter((field) => field.type === 'group')
+    );
+
+    const fields = computed(() =>
+        (pureGroupMemberfields.value ?? []).map((field) => {
             if (field.type === 'group') {
                 return {
                     id: field.field.id,
@@ -64,8 +68,8 @@ export default function useGroupMemberfields(
                 requiredInRegistrationForm:
                     field.field.dbField.requiredInRegistrationForm,
             };
-        });
-    });
+        })
+    );
 
     const requiredFields = computed(() =>
         fields.value.filter((f) => f.requiredInRegistrationForm)
