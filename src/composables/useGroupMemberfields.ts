@@ -34,10 +34,9 @@ export default function useGroupMemberfields(
                 return {
                     id: field.field.id,
                     key: field.field.fieldName,
-                    name:
-                        field.field.name +
+                    name: field.field.nameInSignupForm ? field.field.nameInSignupForm : field.field.name +
                         (field.field.requiredInRegistrationForm ? ' *' : ''),
-                    note: field.field.note,
+                    note: field.field.noteInSignupForm ? field.field.noteInSignupForm : field.field.note,
                     fieldTypeCode: field.field.fieldTypeCode,
                     sortKey: field.field.sortKey,
                     securityLevel: field.field.securityLevel,
