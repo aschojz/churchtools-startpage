@@ -8,8 +8,9 @@ import { ctUtils } from '@churchtools/utils';
 import { ctStyleguide } from '@churchtools/styleguide';
 import { VueQueryPlugin } from '@tanstack/vue-query';
 
+import '@churchtools/styleguide/style';
+import './tailwind.css';
 import './assets/fontawesome/css/all.css';
-import '../node_modules/@churchtools/styleguide/dist/style.css';
 
 declare const window: Window &
     typeof globalThis & {

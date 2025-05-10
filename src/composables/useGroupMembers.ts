@@ -1,15 +1,19 @@
 import { churchtoolsClient } from '@churchtools/churchtools-client';
-import { Member, PaginationMetaData, queryClient } from '@churchtools/utils';
+import {
+    GroupMember,
+    PaginationMetaData,
+    queryClient,
+    useCurrentUser,
+} from '@churchtools/utils';
 import { useInfiniteQuery } from '@tanstack/vue-query';
-import { ComputedRef, Ref } from 'vue';
+import { Ref } from 'vue';
 import { FIFTEEN_MINUTES } from '../utils/config';
-import useMain from './useMain';
 
 export default function useGroupMembers(
-    groupId: ComputedRef<number> | Ref<number>,
-    query: ComputedRef<string> | Ref<string>
+    groupId: Ref<number | undefined>,
+    query: Ref<string | undefined>
 ) {
-    const { currentUserId } = useMain();
+    const currentUser = useCurrentUser();
     const getGroupMembers = () => {
         return useInfiniteQuery(
             {
@@ -17,7 +21,7 @@ export default function useGroupMembers(
                 queryFn: ({ pageParam }) => {
                     return churchtoolsClient.get<{
                         data: {
-                            data: Member[];
+                            data: GroupMember[];
                             meta: PaginationMetaData;
                         };
                     }>(
@@ -52,9 +56,9 @@ export default function useGroupMembers(
         isFetchedAfterMount,
     } = getGroupMembers();
 
-    const getMyMembership = async (): Promise<Member> => {
+    const getMyMembership = async (): Promise<GroupMember> => {
         const membership = members.value?.find(
-            (m) => m.personId === currentUserId.value
+            (m) => m.person.domainIdentifier === currentUser.id.toString()
         );
         if (membership) {
             return Promise.resolve(membership);
