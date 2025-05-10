@@ -3,20 +3,23 @@ import {
     ContentWrapper,
     SectionHeader,
     LoadingDots,
+    SectionedCard,
+    KeyValueItem,
 } from '@churchtools/styleguide';
-import { computed, onMounted, toRef } from 'vue';
-import usePersonMasterData from '../composables/usePersonMasterData';
+import { computed, toRef } from 'vue';
 import useMyGroups from '../composables/useMyGroups';
 import useWikiPage from '../composables/useWikiPage';
-import { mdToHtml, getName } from '../utils/helper';
-import SectionedCard from '../components/SectionedCard.vue';
+import { mdToHtml } from '../utils/helper';
 import {
-    useFields,
+    useDbFieldsQuery,
     mapViz,
     Person,
     useToasts,
+    useCurrentUser,
     queryClient,
     usePermissions,
+    useGroupTypes,
+    useRoles,
 } from '@churchtools/utils';
 import {
     STARTPAGE_WIKIPAGE_ID,
@@ -30,13 +33,12 @@ import {
     errorHelper,
 } from '@churchtools/churchtools-client';
 import { sortBy } from 'lodash';
-import useMain from '../composables/useMain';
 
-const {
-    groupTypes,
-    isLoading: isLoadingMasterData,
-    rolesById,
-} = usePersonMasterData();
+const { groupTypes, queryStatus } = useGroupTypes();
+const { roles } = useRoles();
+const rolesById = computed(() =>
+    Object.fromEntries(roles.value.map((role) => [role.id, role]))
+);
 const { myGroups, isLoading } = useMyGroups();
 
 const filteredGroupTypes = computed(() => {
@@ -47,9 +49,8 @@ const filteredGroupTypes = computed(() => {
         .map((g) => {
             return {
                 ...g,
-                namePluralTranslated: getName(
-                    g.namePluralTranslated ?? g.nameTranslated
-                ),
+                namePluralTranslated:
+                    g.namePluralTranslated ?? g.nameTranslated,
                 groups: myGroups.value
                     .filter(
                         (group) =>
@@ -61,7 +62,7 @@ const filteredGroupTypes = computed(() => {
                             ...group,
                             group: {
                                 ...group.group,
-                                title: getName(group.group.title),
+                                title: group.group.title,
                                 showStatus: g.shorty === 'AB',
                             },
                         };
@@ -83,47 +84,46 @@ const { data: wikiPageFooter } = getWikiPage(
 const description = computed(() => mdToHtml(wikiPage.value?.text));
 const footer = computed(() => mdToHtml(wikiPageFooter.value?.text));
 
-const { store } = usePermissions();
+const { globalPerm } = usePermissions();
 const { successToast, errorToast } = useToasts();
-const { personFields, loadFields } = useFields();
-const { currentUser, currentUserId } = useMain();
-onMounted(async () => {
-    loadFields();
-});
+const { personFields } = useDbFieldsQuery();
+const currentUser = useCurrentUser();
 
 const fields = computed(() => {
     const mapped = mapViz(
         {},
         personFields.value.filter((f) => {
             const secLevel =
-                store.globalPermissions?.churchdb?.[
-                    'security level view own data'
-                ];
-            if (secLevel) {
+                globalPerm.value?.churchdb?.['security level view own data'];
+            if (secLevel?.length) {
                 return (
-                    f.secLevel <= secLevel[0] &&
+                    f.securityLevel <= secLevel[0] &&
                     !f.hideInFrontend &&
-                    ['f_address', 'f_church'].includes(f.fieldCategoryCode) &&
+                    ['f_address', 'f_church'].includes(
+                        f.fieldCategory.internCode
+                    ) &&
                     (f.isNewPersonField ||
                         ['firstName', 'lastName'].includes(f.key))
                 );
             }
             return false;
         }),
-        currentUser.value
+        currentUser.person ?? {}
     );
     const editLevel =
-        store.globalPermissions?.churchdb?.['security level edit own data'];
-    const fields = Object.values(mapped).map((item) => {
+        globalPerm.value?.churchdb?.['security level edit own data'];
+    const fields = Object.values(mapped ?? {}).map((item): KeyValueItem => {
         return {
             type: 'key-value',
             viz: item,
-            editable: editLevel ? item.field.secLevel <= editLevel[0] : false,
+            editable: editLevel
+                ? item?.field.securityLevel <= editLevel[0]
+                : false,
             context: 'Persönliche Daten',
             onSave: async (e) => {
                 try {
                     await churchtoolsClient.patch<Person>(
-                        `/persons/${currentUserId.value}`,
+                        `/persons/${currentUser.id}`,
                         e
                     );
                     queryClient.invalidateQueries({
@@ -136,7 +136,10 @@ const fields = computed(() => {
             },
         };
     });
-    return sortBy(fields, ['viz.field.fieldCategoryCode', 'viz.field.sortKey']);
+    return sortBy(fields, [
+        'viz.field.fieldCategory.internCode',
+        'viz.field.sortKey',
+    ]);
 });
 </script>
 <template>
@@ -144,24 +147,21 @@ const fields = computed(() => {
         <div class="max-w-p mb-10 pjta-markdown" v-html="description"></div>
         <div class="flex flex-col gap-8">
             <LoadingDots
-                v-if="isLoadingMasterData || !currentUserId"
+                v-if="queryStatus === 'pending' || !currentUser.id"
                 class="mt-10"
             />
             <template v-else>
-                <SectionedCard
-                    title="Persönliche Daten"
-                    :items="fields"
-                ></SectionedCard>
+                <SectionedCard title="Persönliche Daten" :items="fields" />
                 <div v-for="type in filteredGroupTypes" :key="type.id">
                     <SectionHeader
-                        :label="type.namePluralTranslated"
+                        :title="type.namePluralTranslated"
                         :note="type.description"
                     />
                     <LoadingDots v-if="isLoading" class="mt-5" />
                     <div v-else class="c-card__wrapper mt-4">
                         <GroupCard
                             v-for="group in type.groups"
-                            :key="group.group.domainIdentifier"
+                            :key="group.group.domainIdentifier!"
                             :gms="group"
                             :show-status="group.group.showStatus"
                         />

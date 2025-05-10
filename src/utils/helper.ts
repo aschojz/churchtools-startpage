@@ -17,7 +17,3 @@ export function mdConverter() {
 }
 
 export const mdToHtml = (md: string = '') => mdConverter().makeHtml(md);
-
-export const getName = (originalName: string = '') => {
-    return originalName;
-};

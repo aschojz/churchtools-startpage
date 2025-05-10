@@ -1,25 +1,28 @@
 <script setup lang="ts">
 import { Card, Tag } from '@churchtools/styleguide';
-import { GroupDomainObjectType, Member } from '@churchtools/utils';
+import {
+    DomainObjectGroup,
+    GroupMember,
+    useCurrentUser,
+} from '@churchtools/utils';
 import useGroupMemberfields from '../composables/useGroupMemberfields';
 import { computed, onMounted, ref, toRef } from 'vue';
 import useGroupMembers from '../composables/useGroupMembers';
-import useMain from '../composables/useMain';
 
 const props = defineProps<{
-    gms: Member & { group: GroupDomainObjectType };
+    gms: GroupMember & { group: DomainObjectGroup };
     showStatus?: boolean;
 }>();
 
 const groupId = computed(() => parseInt(props.gms.group.domainIdentifier));
 const { fields, requiredFields } = useGroupMemberfields(groupId);
-const { currentUser } = useMain();
+const currentUser = useCurrentUser();
 
 const { getMyMembership } = useGroupMembers(
     groupId,
-    toRef(() => currentUser.value?.lastName)
+    toRef(() => currentUser?.person?.lastName)
 );
-const myMembership = ref<Member>();
+const myMembership = ref<GroupMember>();
 const isLoading = ref(true);
 onMounted(async () => {
     myMembership.value = await getMyMembership();
@@ -32,7 +35,7 @@ const fieldsCompleted = computed(() => {
         return 'no-fields';
     }
     return requiredFields.value.every((f) => {
-        const res = myMembership.value?.fields.find((ff) => {
+        const res = myMembership.value?.fields?.find((ff) => {
             const hasValue = Array.isArray(ff.value)
                 ? !!ff.value.filter((v) => !!v && !defaultValues.includes(v))
                       .length
@@ -46,7 +49,7 @@ const fieldsCompleted = computed(() => {
 const tag = computed(() => {
     if (fieldsCompleted.value === 'no-fields') {
         return {
-            color: 'gray',
+            color: 'basic',
             label: 'Optionale Angaben',
         };
     }
@@ -54,13 +57,13 @@ const tag = computed(() => {
         return {
             color: 'green',
             label: 'Angaben vollständig',
-            icon: 'fas fa-circle-check',
+            icon: 'fas fa-circle-check' as const,
         };
     }
     return {
         color: 'red',
         label: 'Angaben unvollständig',
-        icon: 'fas fa-circle-exclamation',
+        icon: 'fas fa-circle-exclamation' as const,
     };
 });
 
@@ -85,7 +88,8 @@ const statusTag = computed(() => {
     const statusIndex = myMembership.value.fields.findIndex(
         (f) => f.id === statusField.id
     );
-    const value = myMembership.value?.fields[statusIndex]?.value ?? null;
+    const value: string | null =
+        myMembership.value?.fields[statusIndex]?.value ?? null;
 
     return {
         label: value ?? 'Eingeladen',

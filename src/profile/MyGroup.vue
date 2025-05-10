@@ -2,14 +2,20 @@
 import {
     ContentWrapper,
     LoadingDots,
-    KeyValueItem,
+    SectionedCard,
     Button,
 } from '@churchtools/styleguide';
-import SectionedCard from '../components/SectionedCard.vue';
-import { Member, mapViz, queryClient, t, useToasts } from '@churchtools/utils';
+import {
+    GroupMember,
+    mapViz,
+    queryClient,
+    t,
+    useToasts,
+    useCurrentUser,
+} from '@churchtools/utils';
 import useGroup from '../composables/useGroup';
 import { computed, onMounted, ref, toRef } from 'vue';
-import { getName, mdToHtml } from '../utils/helper';
+import { mdToHtml } from '../utils/helper';
 import useGroupMemberfields from '../composables/useGroupMemberfields';
 import useGroupMembers from '../composables/useGroupMembers';
 import { sortBy } from 'lodash';
@@ -17,23 +23,22 @@ import {
     churchtoolsClient,
     errorHelper,
 } from '@churchtools/churchtools-client';
-import useMain from '../composables/useMain';
 
 const props = defineProps<{
     groupId: string;
 }>();
 const id = computed(() => parseInt(props.groupId));
-const { currentUserId, currentUser } = useMain();
+const currentUser = useCurrentUser();
 const { errorToast, successToast } = useToasts();
 const { getGroup } = useGroup();
 const { data: group, isLoading } = getGroup(id);
 
 const { getMyMembership } = useGroupMembers(
     id,
-    toRef(() => currentUser.value?.lastName)
+    toRef(() => currentUser.person?.lastName)
 );
 
-const myMembership = ref<Member>();
+const myMembership = ref<GroupMember>();
 onMounted(async () => {
     myMembership.value = await getMyMembership();
 });
@@ -47,7 +52,7 @@ const values = computed(() => {
     );
 });
 
-const name = computed(() => getName(group.value?.name));
+const name = computed(() => group.value?.name);
 const note = computed(() => mdToHtml(group.value?.information.note));
 
 const defaultValues = ['bitte wählen', 'bitte ausfüllen', 'eingeladen'];
@@ -63,13 +68,9 @@ const fields = computed(
 );
 
 const items = computed(() => {
-    const viz: Record<string, KeyValueItem['viz']> = mapViz(
-        {},
-        fields.value,
-        values.value
-    );
+    const viz = mapViz({}, fields.value, values.value);
 
-    const mapped = Object.values(viz).map((item) => {
+    const mapped = Object.values(viz ?? {}).map((item) => {
         return {
             type: 'key-value',
             viz: item,
@@ -94,8 +95,6 @@ const items = computed(() => {
 
                 const payload = { fields: { [field.id]: values } };
                 const p = {
-                    comment: null,
-                    ...myMembership.value,
                     fields:
                         Array.isArray(payload.fields) || !payload.fields
                             ? Object.fromEntries(
@@ -109,8 +108,8 @@ const items = computed(() => {
                             : payload.fields,
                 };
                 try {
-                    const result = await churchtoolsClient.put<Member[]>(
-                        `/groups/${props.groupId}/members/${currentUserId.value}`,
+                    const result = await churchtoolsClient.patch<GroupMember[]>(
+                        `/groups/${props.groupId}/members/${currentUser.id}`,
                         p
                     );
                     myMembership.value = result[0];
@@ -145,7 +144,7 @@ const items = computed(() => {
             v-if="note"
             class="markdown max-w-p text-secondary text-base"
             v-html="note"
-        ></div>
+        />
         <SectionedCard :items="items" />
         <Button
             class="self-start"
