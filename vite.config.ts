@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import eslintPlugin from 'vite-plugin-eslint';
 
@@ -7,7 +8,7 @@ export default ({ mode }) => {
     process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
     return defineConfig({
         base: `/ccm/${process.env.VITE_KEY}/`,
-        plugins: [vue(), eslintPlugin()],
+        plugins: [vue(), eslintPlugin(), tailwindcss()],
         resolve: {
             dedupe: ['vue'],
         },

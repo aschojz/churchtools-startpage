@@ -25,7 +25,9 @@ export default function useGroupMemberfields(
     const { data: groupMemberfields } = getGroupMemberfields();
 
     const pureGroupMemberfields = computed(() =>
-        (groupMemberfields.value ?? []).filter((field) => field.type === 'group')
+        (groupMemberfields.value ?? []).filter(
+            (field) => field.type === 'group'
+        )
     );
 
     const fields = computed(() =>
