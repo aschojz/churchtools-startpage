@@ -115,7 +115,17 @@ const fields = computed(() => {
     const fields = Object.values(mapped ?? {}).map((item): KeyValueItem => {
         return {
             type: 'key-value',
-            viz: item,
+            viz: {
+                ...item,
+                field: {
+                    ...item?.field,
+                    nullable:
+                        item?.field.fieldType.internCode === 'text' &&
+                        item.field.key !== 'name'
+                            ? true
+                            : item?.field.nullable,
+                },
+            },
             editable: editLevel
                 ? item?.field.securityLevel <= editLevel[0]
                 : false,

@@ -12,6 +12,7 @@ import {
     t,
     useToasts,
     useCurrentUser,
+    usePermissions,
 } from '@churchtools/utils';
 import useGroup from '../composables/useGroup';
 import { computed, onMounted, ref, toRef } from 'vue';
@@ -32,6 +33,7 @@ const currentUser = useCurrentUser();
 const { errorToast, successToast } = useToasts();
 const { getGroup } = useGroup();
 const { data: group, isLoading } = getGroup(id);
+const { userAllowedInGroup } = usePermissions();
 
 const { getMyMembership } = useGroupMembers(
     id,
@@ -74,7 +76,13 @@ const items = computed(() => {
         return {
             type: 'key-value',
             viz: item,
-            editable: true,
+            bold: true,
+            editable: userAllowedInGroup(
+                id.value,
+                'churchdb',
+                '+edit own groupmemberfields',
+                item.field.securityLevel
+            ),
             context: name.value,
             onSave: async (e) => {
                 // eslint-disable-next-line prefer-const
@@ -108,11 +116,11 @@ const items = computed(() => {
                             : payload.fields,
                 };
                 try {
-                    const result = await churchtoolsClient.patch<GroupMember[]>(
+                    const result = await churchtoolsClient.patch<GroupMember>(
                         `/groups/${props.groupId}/members/${currentUser.id}`,
                         p
                     );
-                    myMembership.value = result[0];
+                    myMembership.value = result;
                     queryClient.invalidateQueries({
                         queryKey: ['groups', id.value, 'members'],
                     });

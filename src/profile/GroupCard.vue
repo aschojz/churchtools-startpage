@@ -40,7 +40,10 @@ const fieldsCompleted = computed(() => {
                 ? !!ff.value.filter((v) => !!v && !defaultValues.includes(v))
                       .length
                 : !!ff.value && !defaultValues.includes(ff.value);
-            return ff.id === f.id && hasValue;
+            return (
+                ff.id === f.id &&
+                ((hasValue && f.fieldTypeCode !== 'checkbox') || ff.value == 1)
+            );
         });
         return !!res;
     });
