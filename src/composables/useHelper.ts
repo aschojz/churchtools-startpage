@@ -6,10 +6,5 @@ export default function useHelper() {
         md: ComputedRef<string | undefined> | Ref<string | undefined>
     ) => (md.value ? mdConverter().makeHtml(md.value) : '');
 
-    const getName = (
-        originalName: ComputedRef<string | undefined> | Ref<string | undefined>
-    ) => {
-        return originalName.value;
-    };
-    return { mdToHtml, getName };
+    return { mdToHtml };
 }

@@ -1,21 +1,25 @@
 import { churchtoolsClient } from '@churchtools/churchtools-client';
-import { Member, GroupDomainObjectType, queryClient } from '@churchtools/utils';
+import {
+    GroupMember,
+    DomainObjectGroup,
+    queryClient,
+    useCurrentUser,
+} from '@churchtools/utils';
 import { useQuery } from '@tanstack/vue-query';
 import { computed } from 'vue';
-import useMain from './useMain';
 
 export default function useMyGroups() {
-    const { currentUserId, isLoggedIn } = useMain();
+    const currentUser = useCurrentUser();
     const getMyGroups = () => {
         return useQuery(
             {
                 queryKey: ['myGroups'],
                 queryFn: () => {
                     return churchtoolsClient.get<
-                        (Member & { group: GroupDomainObjectType })[]
-                    >(`/persons/${currentUserId.value}/groups`);
+                        (GroupMember & { group: DomainObjectGroup })[]
+                    >(`/persons/${currentUser.id}/groups`);
                 },
-                enabled: isLoggedIn,
+                enabled: () => currentUser.isLoggedIn,
             },
             queryClient
         );

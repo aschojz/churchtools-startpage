@@ -1,25 +1,30 @@
 <script setup lang="ts">
 import { Card, Tag } from '@churchtools/styleguide';
-import { GroupDomainObjectType, Member } from '@churchtools/utils';
+import {
+    DomainObjectGroup,
+    GroupMember,
+    useCurrentUser,
+} from '@churchtools/utils';
 import useGroupMemberfields from '../composables/useGroupMemberfields';
 import { computed, onMounted, ref, toRef } from 'vue';
 import useGroupMembers from '../composables/useGroupMembers';
-import useMain from '../composables/useMain';
 
 const props = defineProps<{
-    gms: Member & { group: GroupDomainObjectType };
+    gms: GroupMember & { group: DomainObjectGroup };
     showStatus?: boolean;
 }>();
 
-const groupId = computed(() => parseInt(props.gms.group.domainIdentifier));
+const groupId = computed(() =>
+    parseInt(props.gms.group.domainIdentifier || '0')
+);
 const { fields, requiredFields } = useGroupMemberfields(groupId);
-const { currentUser } = useMain();
+const currentUser = useCurrentUser();
 
 const { getMyMembership } = useGroupMembers(
     groupId,
-    toRef(() => currentUser.value?.lastName)
+    toRef(() => currentUser?.person?.lastName)
 );
-const myMembership = ref<Member>();
+const myMembership = ref<GroupMember>();
 const isLoading = ref(true);
 onMounted(async () => {
     myMembership.value = await getMyMembership();
@@ -31,13 +36,29 @@ const fieldsCompleted = computed(() => {
     if (!myMembership.value?.fields || !requiredFields.value?.length) {
         return 'no-fields';
     }
+    const hasAbgesagt = requiredFields.value.some((f) => {
+        const res = myMembership.value?.fields?.find((ff) => {
+            const isAbgesagt = Array.isArray(ff.value)
+                ? !!ff.value.filter((v) => v.toLowerCase().includes('abgesagt'))
+                      .length
+                : ff.value?.toString().toLowerCase().includes('abgesagt');
+            return ff.id === f.id && isAbgesagt;
+        });
+        return !!res;
+    });
+    if (hasAbgesagt) {
+        return true;
+    }
     return requiredFields.value.every((f) => {
-        const res = myMembership.value?.fields.find((ff) => {
+        const res = myMembership.value?.fields?.find((ff) => {
             const hasValue = Array.isArray(ff.value)
                 ? !!ff.value.filter((v) => !!v && !defaultValues.includes(v))
                       .length
                 : !!ff.value && !defaultValues.includes(ff.value);
-            return ff.id === f.id && hasValue;
+            return (
+                ff.id === f.id &&
+                ((hasValue && f.fieldTypeCode !== 'checkbox') || ff.value == 1)
+            );
         });
         return !!res;
     });
@@ -46,7 +67,7 @@ const fieldsCompleted = computed(() => {
 const tag = computed(() => {
     if (fieldsCompleted.value === 'no-fields') {
         return {
-            color: 'gray',
+            color: 'basic',
             label: 'Optionale Angaben',
         };
     }
@@ -54,13 +75,14 @@ const tag = computed(() => {
         return {
             color: 'green',
             label: 'Angaben vollständig',
-            icon: 'fas fa-circle-check',
+            icon: 'fas fa-circle-check' as const,
         };
     }
     return {
+        class: 'pjta-required',
         color: 'red',
         label: 'Angaben unvollständig',
-        icon: 'fas fa-circle-exclamation',
+        icon: 'fas fa-circle-exclamation' as const,
     };
 });
 
@@ -85,12 +107,14 @@ const statusTag = computed(() => {
     const statusIndex = myMembership.value.fields.findIndex(
         (f) => f.id === statusField.id
     );
-    const value = myMembership.value?.fields[statusIndex]?.value ?? null;
+    const value: string | null =
+        myMembership.value?.fields[statusIndex]?.value ?? null;
 
     return {
         label: value ?? 'Eingeladen',
-        color: statuses[value]?.color ?? 'yellow',
-        icon: statuses[value]?.icon ?? 'fas fa-envelope',
+        color: statuses[value as keyof typeof statuses]?.color ?? 'yellow',
+        icon: (statuses[value as keyof typeof statuses]?.icon ??
+            'fas fa-envelope') as any,
     };
 });
 </script>
